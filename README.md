@@ -6,7 +6,7 @@ AIエンジニア講座 Section 4-3「API 連携実践」の課題（全10本）
 | # | 課題 | フォルダ | 状態 |
 |---|---|---|---|
 | 1 | Google ドライブ API | [`task1/`](task1/README.md) | 実装・テスト64件・実機で MD5 まで照合済み |
-| 2 | Google ドキュメント API | — | 未着手 |
+| 2 | Google ドキュメント API | [`task2/`](task2/README.md) | 実装・テスト143件・実機で本文と段落まで照合済み |
 | 3 | Google ミート API | — | 未着手 |
 | 4 | Zoom API | — | 未着手 |
 | 5 | Gmail API | — | 未着手 |
