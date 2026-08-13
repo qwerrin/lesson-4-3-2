@@ -101,6 +101,25 @@ def _looks_like_scope_problem(detail: str) -> bool:
     return "scope" in lowered or "insufficient" in lowered
 
 
+def _looks_like_field_unavailable(detail: str) -> bool:
+    """「その項目はこのユーザーには使えない」形の 403 か。
+
+    実機で出た（2026-08-14）。個人アカウントでは spaces.create 自体は通るのに、
+    config.accessType を指定したときだけ 403 になる。
+    応答は項目名まで教えてくれるので、原因を並べただけの案内に混ぜない。
+    """
+    return "is not available to the user" in detail
+
+
+# 応答に出てくる操作名と、利用者に見せる言葉・対処の対応。
+_UNAVAILABLE_FIELDS: dict[str, tuple[str, str]] = {
+    "updateAccessType": (
+        "アクセス種別（config.accessType）",
+        "--access-type を付けずに実行すれば、アカウントの既定のまま作成できます。",
+    ),
+}
+
+
 def _status_of(error: HttpError) -> int | None:
     response = getattr(error, "resp", None)
     return getattr(response, "status", None)
@@ -114,6 +133,21 @@ def _translate_http_error(error: HttpError) -> MeetError:
     """
     status = _status_of(error)
     detail = _api_message(error) or str(error)
+
+    if status == 403 and _looks_like_field_unavailable(detail):
+        label = "指定した項目"
+        advice = "その項目を指定せずに実行してください。"
+        for key, (name, how) in _UNAVAILABLE_FIELDS.items():
+            if key in detail:
+                label, advice = name, how
+                break
+        return MeetError(
+            f"{label}は、このアカウントでは設定できません（{status}）。\n"
+            f"{advice}\n"
+            "スペースの作成そのものは通ります。設定できる項目はアカウントの種類で決まるので、"
+            "コードでは直せません。\n"
+            f"応答: {detail}"
+        )
 
     if status == 403 and _looks_like_api_disabled(detail):
         return MeetError(

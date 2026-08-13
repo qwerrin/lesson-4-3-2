@@ -244,6 +244,28 @@ class TestErrors:
         assert "原因の候補" not in message
         assert "ライブラリ" not in message
 
+    def test_使えない項目を指定した403はその項目を名指しする(self, service, spaces):
+        # 実機で出た応答（2026-08-14）。個人アカウントでは spaces.create は通るのに、
+        # config.accessType を指定すると 403 になる。Google は項目名まで教えてくれる。
+        # 汎用の「原因の候補が3つ」に埋めると、この情報が読み手に届かない。
+        spaces.create_raises = make_http_error(
+            403, "updateAccessType is not available to the user."
+        )
+        with pytest.raises(create_meet.MeetError) as excinfo:
+            create_meet.create_space(service, {"config": {"accessType": "RESTRICTED"}})
+        message = str(excinfo.value)
+        assert "アクセス種別" in message
+        assert "--access-type" in message
+        assert "原因の候補" not in message
+
+    def test_使えない項目の403に応答の原文を残す(self, service, spaces):
+        spaces.create_raises = make_http_error(
+            403, "updateAccessType is not available to the user."
+        )
+        with pytest.raises(create_meet.MeetError) as excinfo:
+            create_meet.create_space(service, {})
+        assert "updateAccessType" in str(excinfo.value)
+
     def test_403はアカウントの種類にも触れる(self, service, spaces):
         # 個人アカウントで通るか未確認。403 の原因候補として残す。
         # 「アカウント」だけで探すと「別のアカウントで試す」に当たってしまうので、

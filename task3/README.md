@@ -5,7 +5,7 @@
 
 Meet のスペース（会議の入れ物）を作り、参加リンク・会議コード・スペース名を表示する。
 
-> **状態（2026-08-14）**: 実装・テスト111件・わざと壊すのを47か所やって穴ゼロ。
+> **状態（2026-08-14）**: 実装・テスト113件・わざと壊すのを49か所やって穴ゼロ。
 > **実機で作成と読み返し照合まで確認済み**（このページの実行結果はすべて実測値）。
 > このページの「調べたこと」「照合する項目」は、**コードを書く前に**確定させた内容。
 
@@ -103,7 +103,7 @@ https://www.googleapis.com/auth/meetings.space.created
 | 3 | 会議コードが一致 | 同上（`meetingCode`） |
 | 4 | 参加リンクが会議コードと整合 | `meetingUri` が `https://meet.google.com/` ＋ `meetingCode` になっているか |
 | 5 | 会議コードの形が正しい | `[a-z]+-[a-z]+-[a-z]+`。リンクとして成立するか |
-| 6 | アクセス種別が指定どおり | 送った `config.accessType` が反映されたか |
+| 6 | アクセス種別が指定どおり | 送った `config.accessType` が反映されたか（**個人アカウントでは指定自体ができなかった**。下記参照） |
 | 7 | 会議はまだ始まっていない | `activeConference` が無い。**スペースを作ることと会議が始まることは別** |
 
 **4番が今回の要。** 2番と3番は「同じ値が返ってきた」しか言っていない。
@@ -180,7 +180,7 @@ credentials = google_auth.load_credentials(args.credentials, args.token, SCOPES)
 
 | オプション | 意味 |
 |---|---|
-| `--access-type` | `OPEN` / `TRUSTED` / `RESTRICTED`。未指定ならアカウントの既定に従う |
+| `--access-type` | `OPEN` / `TRUSTED` / `RESTRICTED`。未指定ならアカウントの既定に従う。**個人アカウントでは指定すると 403 になる**（「つまずいたところ」参照） |
 | `--credentials` | OAuth クライアントの JSON（既定: `credentials.json`） |
 | `--token` | トークンの保存先（既定: `token.json`） |
 
@@ -193,7 +193,7 @@ credentials = google_auth.load_credentials(args.credentials, args.token, SCOPES)
 .venv\Scripts\python.exe -m pytest task3\tests common\tests -v --no-header
 ```
 
-111件（`create_meet` 46件・`verify_meet` 51件・`common/google_auth` 14件）。分類は3つ。
+113件（`create_meet` 47件・`verify_meet` 52件・`common/google_auth` 14件）。分類は3つ。
 
 | 層 | 見ているもの |
 |---|---|
@@ -237,7 +237,55 @@ OK  会議はまだ始まっていない  (activeConference なし)
 1 は通ったこと自体が答え。2 は「形が正しい」で見た。
 3 は `activeConference` が無いことで、**リンクができたことと会議が始まっていることは別**だと確かめられた。
 
-## わざと壊して確かめた（47か所・穴ゼロ）
+## つまずいたところ
+
+### 個人アカウントでは、作れるのに設定はできない
+
+`spaces.create` は個人アカウントで通る。ところが `--access-type RESTRICTED` を
+付けた途端に 403 になった。
+
+```
+応答: updateAccessType is not available to the user.
+```
+
+**作成そのものと、作成時に設定を指定することは、別の権限だった。**
+スコープ（`meetings.space.created`）は足りている。API も有効になっている。
+それでもこの項目だけ弾かれる。アカウントの種類で決まるので、コードでは直せない。
+
+この結果、`config.accessType` を送る経路は個人アカウントでは使えない。
+指定しなければアカウントの既定（今回は `TRUSTED`）で作られる。
+
+### 自分で書いた案内に、自分で引っかかった
+
+このとき最初に出た画面がこれだった。
+
+```
+操作が許可されませんでした（403）。
+原因の候補が3つあります。
+  1. Google Meet API が有効になっていない
+  2. token.json の権限が足りない
+  3. 使っている Google アカウントの種類が Meet API に対応していない
+応答: updateAccessType is not available to the user.
+```
+
+**Google は項目名まで正確に教えてくれているのに、こちらが候補を3つ並べて埋めていた。**
+このページの上のほうに「403 が返ったときに原因を混ぜない」と自分で書いたのに、
+その通りになっていなかった。原因を並べることと、原因を伝えることは違う。
+
+応答が具体的なときは、その具体的な内容を先に出す分岐を足した。
+
+```
+アクセス種別（config.accessType）は、このアカウントでは設定できません（403）。
+--access-type を付けずに実行すれば、アカウントの既定のまま作成できます。
+スペースの作成そのものは通ります。設定できる項目はアカウントの種類で決まるので、コードでは直せません。
+応答: updateAccessType is not available to the user.
+```
+
+**テストでは出せなかった。** 偽の `service` に渡すエラー文面は自分で書くので、
+「`updateAccessType is not available to the user.` という応答が来る」ことを
+知らなければテストにも書けない。実物を叩いて初めて出てきた文字列だった。
+
+## わざと壊して確かめた（49か所・穴ゼロ）
 
 書いた直後にやった。課題2で作ったスクリプトを持ち込み、対象に `common/` を足した。
 

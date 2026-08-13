@@ -118,6 +118,18 @@ MUTATIONS: list[tuple[Path, str, str, str]] = [
     ),
     (
         CREATE,
+        "使えない項目の案内を出さず汎用の403に落とす",
+        "    if status == 403 and _looks_like_field_unavailable(detail):",
+        "    if False:",
+    ),
+    (
+        CREATE,
+        "使えない項目の名前を対応表から引かない",
+        "            if key in detail:",
+        "            if False:",
+    ),
+    (
+        CREATE,
         "API 未有効化の案内を出さない",
         "    if status == 403 and _looks_like_api_disabled(detail):",
         "    if False:",
