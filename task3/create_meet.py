@@ -33,6 +33,10 @@ from common import google_auth  # noqa: E402
 # readonly では作成できないので使わない。settings は今回要らない。
 SCOPES: tuple[str, ...] = ("https://www.googleapis.com/auth/meetings.space.created",)
 
+# config を設定するには別のスコープが要る（公式ガイド: "Setting or accessing
+# meetings settings requires ... meetings.space.settings"）。作成するだけなら要らない。
+SETTINGS_SCOPE = "https://www.googleapis.com/auth/meetings.space.settings"
+
 # meetingUri は「この URL に meetingCode を続けたもの」と定義されている。
 # 照合でこの規則そのものを使うので、定数にして両方から参照する。
 MEET_BASE_URL = "https://meet.google.com/"
@@ -60,6 +64,17 @@ def resolve_access_type(value: str | None) -> str | None:
             f"使えるのは {' / '.join(ACCESS_TYPES)} です。"
         )
     return normalized
+
+
+def scopes_for(access_type: str | None) -> tuple[str, ...]:
+    """その実行に必要なスコープを決める。
+
+    アクセス種別を指定するときだけ設定スコープを足す。指定しない実行で
+    設定権限まで取ると、要らない権限を持ったトークンが残る。
+    """
+    if access_type is None:
+        return SCOPES
+    return SCOPES + (SETTINGS_SCOPE,)
 
 
 def build_space_body(access_type: str | None) -> dict:
@@ -115,7 +130,9 @@ def _looks_like_field_unavailable(detail: str) -> bool:
 _UNAVAILABLE_FIELDS: dict[str, tuple[str, str]] = {
     "updateAccessType": (
         "アクセス種別（config.accessType）",
-        "--access-type を付けずに実行すれば、アカウントの既定のまま作成できます。",
+        f"設定には {SETTINGS_SCOPE} が要るため、--access-type を付けたときだけ要求しています。"
+        "ただし個人アカウントでは、そのスコープを取得しても同じ 403 になりました（2026-08-14 実測）。"
+        "スコープではなくアカウントの制限です。--access-type を外せば既定のまま作成できます。",
     ),
 }
 
@@ -142,10 +159,8 @@ def _translate_http_error(error: HttpError) -> MeetError:
                 label, advice = name, how
                 break
         return MeetError(
-            f"{label}は、このアカウントでは設定できません（{status}）。\n"
+            f"{label}の設定が許可されませんでした（{status}）。\n"
             f"{advice}\n"
-            "スペースの作成そのものは通ります。設定できる項目はアカウントの種類で決まるので、"
-            "コードでは直せません。\n"
             f"応答: {detail}"
         )
 
@@ -251,7 +266,10 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
 
 
 def _default_service_factory(args: argparse.Namespace):
-    credentials = google_auth.load_credentials(args.credentials, args.token, SCOPES)
+    # 送る内容から必要な権限を決める。resolve_access_type はここでも呼ぶ。
+    # 不正な値なら、認証（＝本人のブラウザが開く）より前に落ちる。
+    scopes = scopes_for(resolve_access_type(args.access_type))
+    credentials = google_auth.load_credentials(args.credentials, args.token, scopes)
     return build_service(credentials)
 
 

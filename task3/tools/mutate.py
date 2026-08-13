@@ -118,6 +118,24 @@ MUTATIONS: list[tuple[Path, str, str, str]] = [
     ),
     (
         CREATE,
+        "アクセス種別を指定しても設定スコープを足さない",
+        "    if access_type is None:\n        return SCOPES\n    return SCOPES + (SETTINGS_SCOPE,)",
+        "    return SCOPES",
+    ),
+    (
+        CREATE,
+        "指定しない実行でも設定スコープまで取る",
+        "    if access_type is None:\n        return SCOPES\n",
+        "    if False:\n        return SCOPES\n",
+    ),
+    (
+        CREATE,
+        "必要なスコープを送る内容から決めない",
+        "    scopes = scopes_for(resolve_access_type(args.access_type))",
+        "    scopes = SCOPES",
+    ),
+    (
+        CREATE,
         "使えない項目の案内を出さず汎用の403に落とす",
         "    if status == 403 and _looks_like_field_unavailable(detail):",
         "    if False:",

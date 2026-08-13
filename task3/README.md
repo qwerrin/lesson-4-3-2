@@ -5,7 +5,7 @@
 
 Meet のスペース（会議の入れ物）を作り、参加リンク・会議コード・スペース名を表示する。
 
-> **状態（2026-08-14）**: 実装・テスト113件・わざと壊すのを49か所やって穴ゼロ。
+> **状態（2026-08-14）**: 実装・テスト120件・わざと壊すのを52か所やって穴ゼロ。
 > **実機で作成と読み返し照合まで確認済み**（このページの実行結果はすべて実測値）。
 > このページの「調べたこと」「照合する項目」は、**コードを書く前に**確定させた内容。
 
@@ -41,7 +41,7 @@ Meet API v2 のディスカバリ定義（`meet.v2.json` / revision 20260421）�
 | `spaces.patch` | `PATCH v2/{+name}` | `meetings.space.created` / `meetings.space.settings` |
 | `spaces.endActiveConference` | `POST v2/{+name}:endActiveConference` | `meetings.space.created` |
 
-**要求するのは `meetings.space.created` だけにする。**
+**普段の実行で要求するのは `meetings.space.created` だけにする。**
 
 ```
 https://www.googleapis.com/auth/meetings.space.created
@@ -50,6 +50,19 @@ https://www.googleapis.com/auth/meetings.space.created
 課題1で `drive.file` を選んだのと同じ理由で、いちばん狭いものを取る。
 このスコープは「**自分のアプリが作ったスペースだけ**」に届く。作成にも読み返しにも
 足りるので、これ以上は要らない。`readonly` は読むだけなので作成ができない。
+
+**`--access-type` を指定したときだけ `meetings.space.settings` を足す。**
+設定の読み書きにはこのスコープが要ると公式ガイドにある。ただし指定しない実行では
+要らないので、常に要求はしない。要らない権限を持ったトークンを残さないため。
+
+```python
+def scopes_for(access_type: str | None) -> tuple[str, ...]:
+    if access_type is None:
+        return SCOPES
+    return SCOPES + (SETTINGS_SCOPE,)
+```
+
+（このスコープを足しても、個人アカウントでは設定できなかった。「つまずいたところ」を参照）
 
 **`token.json` は作り直しになる。** 課題2で取ったトークンは `documents` しか
 持っていない。`common/google_auth.py` がそれを検出して同意画面を開き直すので、
@@ -193,7 +206,7 @@ credentials = google_auth.load_credentials(args.credentials, args.token, SCOPES)
 .venv\Scripts\python.exe -m pytest task3\tests common\tests -v --no-header
 ```
 
-113件（`create_meet` 47件・`verify_meet` 52件・`common/google_auth` 14件）。分類は3つ。
+120件（`create_meet` 54件・`verify_meet` 52件・`common/google_auth` 14件）。分類は3つ。
 
 | 層 | 見ているもの |
 |---|---|
@@ -206,7 +219,7 @@ credentials = google_auth.load_credentials(args.credentials, args.token, SCOPES)
 
 ## テストで閉じない穴は、実物を1回読んで閉じる
 
-偽の `service` で固定できるのは**呼び方まで**。次の3つは、111件が全部通っても分からない。
+偽の `service` で固定できるのは**呼び方まで**。次の3つは、120件が全部通っても分からない。
 
 1. 個人アカウントで `spaces.create` が通るか
 2. 返ってきた `meetingUri` が本当に参加リンクの形をしているか
@@ -248,12 +261,31 @@ OK  会議はまだ始まっていない  (activeConference なし)
 応答: updateAccessType is not available to the user.
 ```
 
-**作成そのものと、作成時に設定を指定することは、別の権限だった。**
-スコープ（`meetings.space.created`）は足りている。API も有効になっている。
-それでもこの項目だけ弾かれる。アカウントの種類で決まるので、コードでは直せない。
+原因の候補は2つあった。**スコープが足りない**のか、**アカウントの制限**か。
+公式ガイドには「設定の読み書きには `meetings.space.settings` が要る」と書いてあり、
+こちらが要求していたのは `meetings.space.created` だけだったので、
+最初はスコープ不足を疑った。順に潰した。
 
-この結果、`config.accessType` を送る経路は個人アカウントでは使えない。
-指定しなければアカウントの既定（今回は `TRUSTED`）で作られる。
+| # | 試したこと | 結果 |
+|---|---|---|
+| 1 | `meetings.space.created` だけで作成時に指定 | 403 `updateAccessType is not available to the user.` |
+| 2 | `meetings.space.settings` も要求して同意を取り直し、再実行 | **同じ 403** |
+| 3 | 作成してから `spaces.patch` で後から変更 | 400 `This feature is not available to this user` |
+| 4 | 保存済みトークン（両方のスコープを持つ）で再実行 | **同じ 403**（同意画面は出ない） |
+
+2 のあと `token.json` を開いて、実際に両方のスコープが保存されていることを確認した。
+**スコープではなくアカウントの制限**だと確定した。
+
+作成そのものは通る。読み取り（`spaces.get`）も通る。設定だけができない。
+**「作れる」と「設定できる」は別の権限だった。**
+
+なお、この境界は公式ドキュメントには書かれていない。サービスアカウントで
+他人の代理をする場合の記述はあるが、本人が OAuth で同意する形については
+できるともできないとも書かれていなかった。4回叩いて分かった。
+
+`--access-type` は残してある。**コードが間違っているのではなく、
+アカウント側の制限だから**。Workspace アカウントなら通るはずで、
+そのときのためにスコープを足す分岐も残る。落ちたときに理由を言えるようにしてある。
 
 ### 自分で書いた案内に、自分で引っかかった
 
@@ -285,7 +317,7 @@ OK  会議はまだ始まっていない  (activeConference なし)
 「`updateAccessType is not available to the user.` という応答が来る」ことを
 知らなければテストにも書けない。実物を叩いて初めて出てきた文字列だった。
 
-## わざと壊して確かめた（49か所・穴ゼロ）
+## わざと壊して確かめた（52か所・穴ゼロ）
 
 書いた直後にやった。課題2で作ったスクリプトを持ち込み、対象に `common/` を足した。
 

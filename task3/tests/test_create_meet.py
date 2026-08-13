@@ -178,6 +178,58 @@ class TestScopes:
     def test_読み取り専用スコープでは作成できないので使わない(self):
         assert "meetings.space.readonly" not in " ".join(create_meet.SCOPES)
 
+    def test_既定では設定スコープを要求しない(self):
+        # 設定を変えないなら要らない。要らない権限は取らない。
+        assert "meetings.space.settings" not in " ".join(create_meet.SCOPES)
+
+    def test_アクセス種別を指定しないなら作成スコープだけ(self):
+        assert create_meet.scopes_for(None) == create_meet.SCOPES
+
+    def test_アクセス種別を指定するときだけ設定スコープを足す(self):
+        # config を設定するには meetings.space.settings が要る（公式ガイド）。
+        # 指定したときだけ要求することで、普段の実行では権限を広げない。
+        assert create_meet.scopes_for("OPEN") == (
+            "https://www.googleapis.com/auth/meetings.space.created",
+            "https://www.googleapis.com/auth/meetings.space.settings",
+        )
+
+    def test_設定スコープは作成スコープの後ろに足す(self):
+        # 作成スコープが先頭にある前提のメッセージがあるので順番を固定する。
+        assert create_meet.scopes_for("TRUSTED")[0] == create_meet.SCOPES[0]
+
+
+class TestDefaultServiceFactory:
+    def _run(self, monkeypatch, access_type):
+        captured: list[list[str]] = []
+
+        def fake_load(credentials_path, token_path, scopes, **kwargs):
+            captured.append(list(scopes))
+            return object()
+
+        monkeypatch.setattr(create_meet.google_auth, "load_credentials", fake_load)
+        monkeypatch.setattr(create_meet, "build_service", lambda credentials: "SERVICE")
+        args = create_meet.parse_args(
+            [] if access_type is None else ["--access-type", access_type]
+        )
+        create_meet._default_service_factory(args)
+        return captured[0]
+
+    def test_指定なしなら作成スコープだけで同意を取る(self, monkeypatch):
+        assert self._run(monkeypatch, None) == list(create_meet.SCOPES)
+
+    def test_指定ありなら設定スコープも含めて同意を取る(self, monkeypatch):
+        assert "https://www.googleapis.com/auth/meetings.space.settings" in self._run(
+            monkeypatch, "RESTRICTED"
+        )
+
+    def test_不正な値ならAPIへ繋ぐ前に落とす(self, monkeypatch):
+        monkeypatch.setattr(
+            create_meet.google_auth, "load_credentials", lambda *a, **k: pytest.fail("認証してはいけない")
+        )
+        args = create_meet.parse_args(["--access-type", "PUBLIC"])
+        with pytest.raises(create_meet.MeetError):
+            create_meet._default_service_factory(args)
+
 
 # ================================================================ 2. API の呼び方
 
