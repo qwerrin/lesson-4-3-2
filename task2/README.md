@@ -6,7 +6,7 @@
 タイトルと本文を受け取り、新しい Google ドキュメントを作って本文を挿入し、
 できたドキュメントの ID とリンクを表示する。
 
-> **状態（2026-08-12）**: 実装・テスト143件・わざと壊すのを47か所やって穴ゼロ。
+> **状態（2026-08-13）**: 実装・テスト143件・わざと壊すのを47か所やって穴ゼロ。
 > **実機で作成と読み返し照合まで確認済み**（このページの実行結果はすべて実測値）。
 
 ## 先に済ませること（Google Cloud 側・手作業）
@@ -59,14 +59,14 @@ py -3 -m venv .venv
 初回だけ既定のブラウザが開いて Google の同意画面が出る。
 許可すると `token.json` ができて、次からはブラウザが開かない。
 
-実測（2026-08-12）:
+実測（2026-08-13）:
 
 ```
 ドキュメントを作成しました
   タイトル      : 課題2のドキュメント
-  ドキュメントID: 1yrar5y6oDTFsJ8zWjGxt6O6M73zoZDwhHDkp7PUP3Gw
+  ドキュメントID: 1Of-wBZ0BX-5MXmbOecNBIodJEpDVq_9FDIaEt5a_y9U
   挿入した文字数: 129
-  リンク        : https://docs.google.com/document/d/1yrar5y6oDTFsJ8zWjGxt6O6M73zoZDwhHDkp7PUP3Gw/edit
+  リンク        : https://docs.google.com/document/d/1Of-wBZ0BX-5MXmbOecNBIodJEpDVq_9FDIaEt5a_y9U/edit
 ```
 
 ID とリンクは実行ごとに変わる。**このページに出てくる ID は全部この1回の実行のもの**で、
@@ -135,15 +135,15 @@ ID とリンクは実行ごとに変わる。**このページに出てくる ID
 **平らな文字列の比較だけにしないのが要。** 本文の照合は文字列を1本に潰して比べるので、
 改行が段落として反映されたかは見えない。段落数は本文とは別の場所（構造）から数えている。
 
-実測（2026-08-12・上の実行で作ったドキュメント）:
+実測（2026-08-13・上の実行で作ったドキュメント）:
 
 ```
-OK  ドキュメントIDが一致  1yrar5y6oDTFsJ8zWjGxt6O6M73zoZDwhHDkp7PUP3Gw / 1yrar5y6oDTFsJ8zWjGxt6O6M73zoZDwhHDkp7PUP3Gw
+OK  ドキュメントIDが一致  1Of-wBZ0BX-5MXmbOecNBIodJEpDVq_9FDIaEt5a_y9U / 1Of-wBZ0BX-5MXmbOecNBIodJEpDVq_9FDIaEt5a_y9U
 OK  タイトルが一致  課題2のドキュメント / 課題2のドキュメント
 OK  本文が一致  Google ドキュメント API の課題2で挿入したテキストです。\n\nこのファ… / Google ドキュメント API の課題2で挿入したテキストです。\n\nこのファ…
 OK  文字数が一致  129 / 129
 OK  段落数が一致  9 / 9
-リンク: https://docs.google.com/document/d/1yrar5y6oDTFsJ8zWjGxt6O6M73zoZDwhHDkp7PUP3Gw/edit
+リンク: https://docs.google.com/document/d/1Of-wBZ0BX-5MXmbOecNBIodJEpDVq_9FDIaEt5a_y9U/edit
 ```
 
 終了コード 0。**画面に出しているのは先頭40文字までだが、比較は全文で行っている**
