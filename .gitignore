@@ -11,3 +11,11 @@ token.json
 *credentials*.json
 *client_secret*.json
 token*.json
+
+# 課題4（Zoom）の Server-to-Server OAuth の資格情報。
+# Account ID / Client ID / Client Secret を環境変数で渡すため。
+.env
+.env.*
+
+# mutate.py が強制終了に備えて置く控え。正常終了すれば残らない。
+.mutate_backup/
