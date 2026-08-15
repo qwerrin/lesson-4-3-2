@@ -196,14 +196,14 @@ MUTATIONS: list[tuple[Path, str, str, str]] = [
         CREATE,
         "既定の資格情報パスを絶対パスにする",
         'parser.add_argument("--credentials", default="credentials.json"',
-        'parser.add_argument("--credentials", default="C:/Users/sprin/credentials.json"',
+        'parser.add_argument("--credentials", default="C:/Users/example/credentials.json"',
     ),
     (
         CREATE,
         "既定のトークンパスを絶対パスにする",
         'parser.add_argument("--token", default="token.json", help="トークンの保存先")\n'
         "    return parser.parse_args(argv)\n\n\ndef _default_service_factory",
-        'parser.add_argument("--token", default="C:/Users/sprin/token.json", help="トークンの保存先")\n'
+        'parser.add_argument("--token", default="C:/Users/example/token.json", help="トークンの保存先")\n'
         "    return parser.parse_args(argv)\n\n\ndef _default_service_factory",
     ),
     (
