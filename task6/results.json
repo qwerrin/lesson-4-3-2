@@ -1,0 +1,27 @@
+{
+  "keyword": "Python 入門",
+  "order": "relevance",
+  "count": 5,
+  "videos": [
+    {
+      "title": "【Python入門】プログラミングの基本を2時間半で学ぶ！〜初心者用チュートリアル〜 Python速習",
+      "url": "https://www.youtube.com/watch?v=tCMl1AWfhQQ"
+    },
+    {
+      "title": "【最新版】Python超入門講座（合併版）｜Pythonの超基本的な部分をたった1時間で学べます【プログラミング初心者向け入門講座】",
+      "url": "https://www.youtube.com/watch?v=HCZNs3AyFM8"
+    },
+    {
+      "title": "Python基礎コース 合併版｜Pythonの入門から基礎までを6時間で習得【プログラミング初心者はこの1本でOK】",
+      "url": "https://www.youtube.com/watch?v=YEr-cz9pAHU"
+    },
+    {
+      "title": "AI時代にもPythonを学ぶべき？AI×プログラミング講師がAI時代のPythonの学び方についてお話しさせていただきます【Python 学び方 プログラミング】",
+      "url": "https://www.youtube.com/watch?v=g2uHHc-I6yw"
+    },
+    {
+      "title": "【総集編】Python入門講座｜Pythonの基礎を3時間でしっかり学べます！高校生・プログラミング初心者向け",
+      "url": "https://www.youtube.com/watch?v=hv0w4ZCT-uQ"
+    }
+  ]
+}

@@ -10,3 +10,8 @@ task1/data/* -text
 # create_doc.py が LF に直して送るので照合は通ってしまう。
 # 代わりに README に載せたバイト数と文字数だけが静かにずれる。
 task2/data/* -text
+
+# 課題6の検索結果。search_videos.py が newline="\n" を明示して書くので、
+# チェックアウトで CRLF に変換されると、**再実行するたびに全行が差分として出る**
+# （中身は同じなのに）。書く側と置かれる側で改行を揃える。
+task6/results.json -text

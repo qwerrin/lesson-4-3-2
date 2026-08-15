@@ -4,9 +4,10 @@ AIエンジニア講座 Section 4-3「API 連携実践」の課題（全10本）
 課題ごとに `taskN/` を作る。認証ファイルはリポジトリのルートで共有する。
 
 課題をまたいで使う部品は `common/` に置く。**認証は相手ごとに別ファイルにする**
-（`google_auth.py` / `zoom_auth.py`）。同意画面とリフレッシュがある Google と、
-毎回取り直す Zoom の Server-to-Server OAuth では形が違いすぎて、共通の抽象を
-被せるとどちらの説明も嘘になる。
+（`google_auth.py` / `zoom_auth.py` / `youtube_auth.py`）。同意画面とリフレッシュがある
+Google の OAuth、毎回取り直す Zoom の Server-to-Server OAuth、公開データを読むだけで
+認可する相手がいない YouTube の API キーでは形が違いすぎて、共通の抽象を被せると
+どの説明も嘘になる。
 
 課題1・課題2は当時のコード（各自のコピー）のまま残してある。
 
@@ -17,7 +18,7 @@ AIエンジニア講座 Section 4-3「API 連携実践」の課題（全10本）
 | 3 | Google ミート API | [`task3/`](task3/README.md) | 実装・テスト120件・実機で参加リンクと整合まで照合済み |
 | 4 | Zoom API | [`task4/`](task4/README.md) | 実装・テスト153件・実機で作成と読み返し照合まで確認済み |
 | 5 | Gmail API | [`task5/`](task5/README.md) | 実装・テスト176件・実機で送信と読み返し照合まで確認済み |
-| 6 | YouTube API | — | 未着手 |
+| 6 | YouTube API | [`task6/`](task6/README.md) | 実装・テスト205件・実機で検索と別エンドポイントでの照合まで確認済み |
 | 7 | Slack API | — | 未着手 |
 | 8 | Discord | — | 未着手 |
 | 9 | LINE Messaging API | — | 未着手 |
@@ -54,6 +55,22 @@ Zoom（課題4）はファイルではなく環境変数で渡す。**リポジ�
 
 ```powershell
 $env:ZOOM_ACCOUNT_ID="..."; $env:ZOOM_CLIENT_ID="..."; $env:ZOOM_CLIENT_SECRET="..."
+```
+
+課題6（YouTube）も環境変数で渡す。
+
+```powershell
+$env:YOUTUBE_API_KEY="..."
+```
+
+**API キーは他の資格情報と危険の出かたが違う。URL のクエリに載る**ので、
+失敗したリクエストの例外を印字しただけで漏れる（`str(HttpError)` に URI が入る）。
+`common/youtube_auth.py` の `redact()` を通してから表に出すこと。
+
+漏れていないかは、README ではなく**リポジトリ全体**を機械で見る。
+
+```bash
+.venv\Scripts\python.exe task6\tools\check_docs.py
 ```
 
 ## テスト
