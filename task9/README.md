@@ -120,7 +120,7 @@ git check-ignore -v .env.example  # 無視されない（出力なし・終了�
 | `common/line_auth.py` | トークンと宛先IDの読み込み・セッション組み立て・`GET /v2/bot/info`・エラーの訳し分け |
 | `common/env_file.py` | `.env` の読み込み。**python-dotenv の沈黙を例外に変える**のが仕事 |
 | `task9/tools/mutate.py` | 実装を1か所ずつ壊して、テストが落ちることを確認する（86か所） |
-| `task9/tools/check_docs.py` | この README とコードを機械照合する（26項目） |
+| `task9/tools/check_docs.py` | この README とコードを機械照合する（38項目） |
 
 テストは4本ある。
 
