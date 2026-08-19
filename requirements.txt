@@ -6,3 +6,6 @@ google-auth-oauthlib==1.4.0
 # 直接 import する以上、依存が外れたときに気づけるよう明示する。
 requests==2.34.2
 pytest==9.1.1
+# 課題9（LINE）だけ資格情報を .env で渡すため。課題4〜8 は PowerShell の
+# 環境変数だったので、ここまで依存が無かった。
+python-dotenv==1.2.3

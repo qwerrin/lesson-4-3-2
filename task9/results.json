@@ -1,0 +1,15 @@
+{
+  "bot": {
+    "user_id": "U1b305ee6f6bcf47c7fa6ad0277ccb17c",
+    "basic_id": "@687jseqd",
+    "display_name": "開発テスト",
+    "chat_mode": "bot",
+    "mark_as_read_mode": "auto"
+  },
+  "to_masked": "U8…9a",
+  "text": "課題9: LINE Messaging API から送信しています。",
+  "message_id": "627992766655496211",
+  "request_id": "b48407e7-832e-46e7-aad9-5c31840036b9",
+  "usage_before": 3,
+  "usage_after": 4
+}

@@ -19,9 +19,9 @@ Google の OAuth、毎回取り直す Zoom の Server-to-Server OAuth、公開�
 | 4 | Zoom API | [`task4/`](task4/README.md) | 実装・テスト153件・実機で作成と読み返し照合まで確認済み |
 | 5 | Gmail API | [`task5/`](task5/README.md) | 実装・テスト176件・実機で送信と読み返し照合まで確認済み |
 | 6 | YouTube API | [`task6/`](task6/README.md) | 実装・テスト205件・実機で検索と別エンドポイントでの照合まで確認済み |
-| 7 | Slack API | — | 未着手 |
-| 8 | Discord | — | 未着手 |
-| 9 | LINE Messaging API | — | 未着手 |
+| 7 | Slack API | [`task7/`](task7/README.md) | 実装・テスト142件・実機で投稿と読み返し照合まで確認済み |
+| 8 | Discord | [`task8/`](task8/README.md) | 実装・テスト163件・実機で Bot と Webhook の2経路を照合まで確認済み |
+| 9 | LINE Messaging API | [`task9/`](task9/README.md) | 実装・テスト118件・実機で送信と**別エンドポイントでの通数照合**まで確認済み（**本文の読み返しは API が無いので目視**） |
 | 10 | 連携した API に機能を追加 | — | 未着手 |
 
 ## セットアップ
@@ -44,6 +44,19 @@ git check-ignore -v credentials.json token.json .env task5/token-send.json task5
 ```
 
 出力が無い（＝無視されていない）場合は絶対に push しない。
+
+**課題9だけは `.env` ファイルを使う**（課題4〜8 は PowerShell の環境変数）。
+見本の `.env.example` は**逆に追跡されていないといけない**——値の入れ方が分かる
+ファイルがリポジトリに無いと、採点者が動かせない。
+
+```bash
+git check-ignore -q .env          && echo ".env は無視: OK"
+git check-ignore -q .env.example  || echo ".env.example は追跡: OK"
+```
+
+> `.gitignore` の `.env.*` が `.env.example` まで巻き込んでいた（2026-08-19 に発見）。
+> **無視されるべきものと、されてはいけないものが同じ行で決まる。**
+> `!.env.example` の例外を足して直してある。
 
 課題5は**トークンを2本に分けている**（`task5/token-send.json` / `task5/token-verify.json`）。
 送信と読み取りでスコープが違い、1本を共有すると `common/google_auth.py` が
