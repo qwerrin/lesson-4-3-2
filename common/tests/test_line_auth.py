@@ -626,3 +626,207 @@ def test_env_names_match_the_example_file():
     """
     assert line_auth.CHANNEL_ACCESS_TOKEN_ENV == "LINE_CHANNEL_ACCESS_TOKEN"
     assert line_auth.USER_ID_ENV == "LINE_USER_ID"
+
+
+# ============================================ 課題10：送る前に確かめる（宛先）
+#
+# 課題9では「送れたことをどう確かめるか」だけを扱った。読み返す API が無い以上、
+# **送る前にしか確かめられないこと**があり、それがここから下である。
+
+
+def profile_payload(**overrides):
+    payload = {"userId": USER_ID, "displayName": "ダミー太郎"}
+    payload.update(overrides)
+    return payload
+
+
+def test_profile_of_a_friend_is_reachable():
+    session = FakeSession(FakeResponse(payload=profile_payload()))
+
+    result = line_auth.fetch_profile(session, USER_ID)
+
+    assert result.reachable is True
+    assert result.profile is not None
+    assert result.profile.display_name == "ダミー太郎"
+
+
+def test_profile_404_means_not_reachable_and_is_not_an_error():
+    """未友だち・ブロックは 404。**例外にしない。**
+
+    push はこの相手に対しても **HTTP 200 を返す**。友だちかどうかを判定する
+    専用の API は無く、この 404 が唯一の手がかりである。つまり 404 は
+    「異常」ではなく、**送る前に分かる正常な状態**として扱う。
+
+    例外にすると呼ぶ側が try/except で包むことになり、
+    「確かめて届かないと分かった」と「確かめられなかった」が混ざる。
+    """
+    session = FakeSession(
+        FakeResponse(status_code=404, payload={"message": "Not found"})
+    )
+
+    result = line_auth.fetch_profile(session, USER_ID)
+
+    assert result.reachable is False
+    assert result.profile is None
+    assert result.reason != ""
+
+
+def test_profile_401_is_an_error_not_unreachable():
+    """401 は資格情報の問題。「友だちではない」と混ぜない。
+
+    混ぜると、**トークンが切れているのに「相手にブロックされた」と報告する**。
+    原因が違えば直しかたも違う。
+    """
+    session = FakeSession(
+        FakeResponse(status_code=401, payload={"message": "Authentication failed"})
+    )
+
+    with pytest.raises(line_auth.LineError):
+        line_auth.fetch_profile(session, USER_ID)
+
+
+def test_profile_url_carries_the_user_id():
+    session = FakeSession(FakeResponse(payload=profile_payload()))
+
+    line_auth.fetch_profile(session, USER_ID)
+
+    assert session.calls[0][1].endswith(f"/v2/bot/profile/{USER_ID}")
+
+
+def test_profile_without_optional_fields_still_works():
+    """``pictureUrl`` / ``statusMessage`` / ``language`` は省略されうる。
+
+    ``language`` は**利用者がプライバシーポリシーに同意していないと入らない**
+    （公式 OpenAPI 定義で確認）。必須でないものを必須として読むと、
+    同意状況によって落ちる。
+    """
+    session = FakeSession(
+        FakeResponse(payload={"userId": USER_ID, "displayName": "ダミー太郎"})
+    )
+
+    result = line_auth.fetch_profile(session, USER_ID)
+
+    assert result.reachable is True
+
+
+# ============================================ 課題10：送る前に確かめる（通数）
+
+
+def test_quota_limited_carries_the_limit():
+    session = FakeSession(FakeResponse(payload={"type": "limited", "value": 200}))
+
+    quota = line_auth.fetch_quota(session)
+
+    assert quota.limited is True
+    assert quota.limit == 200
+
+
+def test_quota_none_has_no_limit_and_is_not_zero():
+    """``type: "none"`` は**無制限**で、``value`` は省略される。
+
+    ここを 0 と読むと「枠が無い＝送れない」と**真逆に判定する**。
+    公式 OpenAPI 定義は value を
+    「``type`` が ``limited`` のときに返る」と明記している。
+    """
+    session = FakeSession(FakeResponse(payload={"type": "none"}))
+
+    quota = line_auth.fetch_quota(session)
+
+    assert quota.limited is False
+    assert quota.limit is None
+
+
+def test_consumption_reads_total_usage():
+    session = FakeSession(FakeResponse(payload={"totalUsage": 4}))
+
+    assert line_auth.fetch_consumption(session) == 4
+
+
+def test_remaining_is_limit_minus_usage():
+    quota = line_auth.Quota(limited=True, limit=200)
+
+    assert line_auth.remaining_messages(quota, 4) == 196
+
+
+def test_remaining_is_none_when_unlimited_not_zero():
+    """無制限のときの残数は **None**。0 と混ぜない。
+
+    0 を返すと「使い切った」と同じ値になり、送信前ガードが
+    **無制限のアカウントで送信を止める**。
+    """
+    quota = line_auth.Quota(limited=False, limit=None)
+
+    assert line_auth.remaining_messages(quota, 4) is None
+
+
+def test_remaining_can_go_negative():
+    """使い切った後も消費数は増える。負の値を 0 に丸めない。
+
+    丸めると「あと 0 通」と「12 通ぶん超過している」が同じ表示になる。
+    """
+    quota = line_auth.Quota(limited=True, limit=200)
+
+    assert line_auth.remaining_messages(quota, 212) == -12
+
+
+# ==================== 課題10：上のテストが守れていなかったところ（実測で発覚）
+#
+# 2026-08-20 のミューテーションで、下の4つは**壊しても誰も気づかなかった**。
+# どれも「例外が出た」「空でない」しか見ていなかったのが原因で、
+# 課題9で踏んだ「肩代わり」と同じ形をしている。
+
+
+def test_unreachable_reason_names_the_cause():
+    """理由に「なぜ止めたか」が入る。**空でないだけでは足りない。**
+
+    reason は複数の文を連結して作るので、一部を空にしても「空でない」は
+    満たされてしまう。何が書かれているべきかを名指しで確かめる。
+    """
+    session = FakeSession(
+        FakeResponse(status_code=404, payload={"message": "Not found"})
+    )
+
+    result = line_auth.fetch_profile(session, USER_ID)
+
+    assert "404" in result.reason
+    assert "友だち" in result.reason
+    # push が 200 を返すこと自体が、止める理由の中核なので必ず触れる。
+    assert "200" in result.reason
+
+
+def test_profile_401_is_rejected_even_when_the_body_looks_normal():
+    """本文が**正常な形**でも、401 は例外にする。
+
+    ひとつ上の 401 のテストは本文をエラー形にしていたので、
+    ``raise_for_line_error`` を消しても「userId が無い」で別の例外が出て、
+    **テストが通ってしまった**（2026-08-20 のミューテーションで素通り）。
+    本文を正常な形にすると、防壁がこの1つだけになる。
+    """
+    session = FakeSession(FakeResponse(status_code=401, payload=profile_payload()))
+
+    with pytest.raises(line_auth.LineError):
+        line_auth.fetch_profile(session, USER_ID)
+
+
+def test_profile_without_user_id_is_rejected():
+    """200 でも ``userId`` が無ければ中断する。
+
+    宛先を確かめられないまま「届く」と答えると、**確かめていないことを
+    確かめたことにしてしまう**。
+    """
+    session = FakeSession(FakeResponse(payload={"displayName": "ダミー太郎"}))
+
+    with pytest.raises(line_auth.LineError):
+        line_auth.fetch_profile(session, USER_ID)
+
+
+def test_consumption_without_total_usage_is_rejected():
+    """``totalUsage`` が無ければ中断する。
+
+    0 とみなすと**残数が水増しされる**。「まだ 200 通ある」と答えてから
+    送信に失敗するのが、いちばん困る壊れかたである。
+    """
+    session = FakeSession(FakeResponse(payload={}))
+
+    with pytest.raises(line_auth.LineError):
+        line_auth.fetch_consumption(session)

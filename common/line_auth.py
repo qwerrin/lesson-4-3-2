@@ -388,3 +388,162 @@ def fetch_bot_info(session, *, base: str = API_BASE, secrets: tuple = ()) -> Bot
         chat_mode=str(payload.get("chatMode") or ""),
         mark_as_read_mode=str(payload.get("markAsReadMode") or ""),
     )
+
+
+# ------------------------------------------------ 送る前に確かめる（課題10で追加）
+#
+# 課題9では「送れたことを、どう確かめるか」だけを扱った。LINE には bot が
+# 送ったテキストを読み返す API が無い以上、**送る前にしか確かめられないこと**
+# があり、それがここから下である。
+#
+# 課題9の verify_push.py も quota を叩いているが、あちらは送信後の
+# 「通数が増えたか」に使っていて、**送信を止める判断には使っていない**。
+
+
+@dataclass(frozen=True)
+class Profile:
+    """``GET /v2/bot/profile/{userId}`` が答えた宛先の素性。
+
+    必須なのは ``userId`` と ``displayName`` の2つだけ。``pictureUrl`` /
+    ``statusMessage`` / ``language`` は省略されうる（``language`` は
+    **利用者がプライバシーポリシーに同意していないと入らない**。
+    公式 OpenAPI 定義で確認）。必須でないものを必須として読むと、
+    こちらの実装は変えていないのに**相手の同意状況で落ちる**。
+    """
+
+    user_id: str
+    display_name: str
+
+
+@dataclass(frozen=True)
+class Reachability:
+    """その宛先に**届くのか**を、送る前に答えたもの。
+
+    **push は未友だち・ブロックの相手にも 200 を返す。** 友だちかどうかを
+    判定する専用の API は無く、``GET /v2/bot/profile/{userId}`` が 404 を
+    返すことだけが手がかりになる。
+
+    だから 404 は「異常」ではなく、**正常に取得できた否定の答え**として扱い、
+    例外にしない。例外にすると呼ぶ側が try/except で包むことになり、
+    「確かめて届かないと分かった」と「確かめられなかった」が混ざる。
+    """
+
+    reachable: bool
+    reason: str
+    profile: Profile | None
+
+
+@dataclass(frozen=True)
+class Quota:
+    """今月の送信上限。
+
+    ``limited`` が偽なら**無制限**で、``limit`` は ``None`` になる。
+    **0 と混ぜないこと。** 0 は「上限はあるが使い切った」で、無制限とは
+    真逆の意味になる。
+    """
+
+    limited: bool
+    limit: int | None
+
+
+QUOTA_PATH = "/v2/bot/message/quota"
+CONSUMPTION_PATH = "/v2/bot/message/quota/consumption"
+
+
+def fetch_profile(
+    session, user_id: str, *, base: str = API_BASE, secrets: tuple = ()
+) -> Reachability:
+    """宛先に届くかを、送る前に確かめる。
+
+    **404 を例外にしない。** ここだけは「エラー」ではなく答えとして返す。
+    理由は Reachability の説明のとおりで、404 が唯一の判定手段だから。
+
+    一方 401 や 403 は**資格情報の問題**なので、通常どおり例外にする。
+    混ぜると「トークンが切れているのに、相手にブロックされたと報告する」
+    ことになり、原因が違うのに同じ直しかたを試すはめになる。
+    """
+    response = session.get(f"{base}/v2/bot/profile/{user_id}")
+
+    if getattr(response, "status_code", None) == 404:
+        return Reachability(
+            reachable=False,
+            reason=(
+                "この宛先はプロフィールを返しませんでした（404）。"
+                "友だち追加されていないか、ブロックされています。"
+                "push はこの相手にも 200 を返すため、送信前に止めます。"
+            ),
+            profile=None,
+        )
+
+    raise_for_line_error(response, *secrets)
+
+    payload = _payload_of(response)
+    if not isinstance(payload, dict):
+        raise ApiError("応答を JSON として読めませんでした（/v2/bot/profile）。")
+
+    profile_user_id = str(payload.get("userId") or "").strip()
+    if not profile_user_id:
+        raise ApiError(
+            "/v2/bot/profile が userId を返しませんでした。"
+            "宛先を確かめられないため中断します。"
+        )
+
+    return Reachability(
+        reachable=True,
+        reason="",
+        profile=Profile(
+            user_id=profile_user_id,
+            display_name=str(payload.get("displayName") or ""),
+        ),
+    )
+
+
+def fetch_quota(session, *, base: str = API_BASE, secrets: tuple = ()) -> Quota:
+    """今月の送信上限を読む。"""
+    response = session.get(base + QUOTA_PATH)
+    raise_for_line_error(response, *secrets)
+
+    payload = _payload_of(response)
+    if not isinstance(payload, dict):
+        raise ApiError("応答を JSON として読めませんでした（/v2/bot/message/quota）。")
+
+    limited = str(payload.get("type") or "") == "limited"
+    raw_limit = payload.get("value")
+    # **value は type が limited のときだけ返る。**
+    # 無いものを 0 と読むと「無制限」が「使い切った」に化ける。
+    limit = int(raw_limit) if limited and raw_limit is not None else None
+    return Quota(limited=limited, limit=limit)
+
+
+def fetch_consumption(session, *, base: str = API_BASE, secrets: tuple = ()) -> int:
+    """今月すでに送った通数を読む。"""
+    response = session.get(base + CONSUMPTION_PATH)
+    raise_for_line_error(response, *secrets)
+
+    payload = _payload_of(response)
+    if not isinstance(payload, dict):
+        raise ApiError(
+            "応答を JSON として読めませんでした（/v2/bot/message/quota/consumption）。"
+        )
+
+    raw_usage = payload.get("totalUsage")
+    if raw_usage is None:
+        raise ApiError(
+            "/v2/bot/message/quota/consumption が totalUsage を返しませんでした。"
+            "残数を数えられないため中断します。"
+        )
+    return int(raw_usage)
+
+
+def remaining_messages(quota: Quota, consumption: int) -> int | None:
+    """あと何通送れるか。**無制限なら None。**
+
+    0 を返してはいけない。0 は「上限はあるが使い切った」であり、無制限とは
+    真逆である。混ぜると送信前ガードが**無制限のアカウントで送信を止める**。
+
+    使い切ったあとも消費数は増えるので、**負の値は丸めない**。丸めると
+    「あと 0 通」と「12 通ぶん超過している」が同じ表示になる。
+    """
+    if not quota.limited or quota.limit is None:
+        return None
+    return quota.limit - consumption
