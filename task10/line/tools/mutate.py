@@ -223,6 +223,297 @@ MUTATIONS: list[tuple[str, str, str, str]] = [
 ]
 
 
+VERIFY = "task10/line/verify_notify.py"
+CHECKDOCS = "task10/line/tools/check_docs.py"
+
+# 課題10の後半（送信前ガードの統合・送信・照合・自己検査）で足したぶん。
+#
+# **どれも1行の置換にしてある。** 複数行のパターンは改行の扱いで一度も
+# マッチしないことがあり、「置換先なし」は素通りと同じ扱いなので、
+# 壊しかたが悪いのか照合器が壊れているのか区別が付かないまま数字だけ出る。
+MUTATIONS += [
+    # ============================================ 送信前ガード：止める判断
+    (
+        NOTIFY,
+        "届かないと分かっても止めない",
+        "    if not reachability.reachable:",
+        "    if False:",
+    ),
+    (
+        NOTIFY,
+        "止めた理由を空にする（利用者が何を直せばよいか分からなくなる）",
+        '            reachability.reason or "宛先に届きません（理由が記録されていません）。"',
+        '            ""',
+    ),
+    (
+        NOTIFY,
+        "無制限を「使い切った」として止める（真逆の判断）",
+        '        notes.append("今月の送信上限は設定されていません（無制限）。")',
+        '        blocks.append("今月の残り通数が足りません: 残り 0 通。")',
+    ),
+    (
+        NOTIFY,
+        "最後の1通を送らせない（境界を1つ内側にする）",
+        "    elif remaining < needed:",
+        "    elif remaining <= needed:",
+    ),
+    (
+        NOTIFY,
+        "超過を 0 に丸める（使い切りと区別が付かなくなる）",
+        '            f"今月の残り通数が足りません: 残り {remaining} 通 / 必要 {needed} 通。"',
+        '            f"今月の残り通数が足りません: 残り {max(0, remaining)} 通 / 必要 {needed} 通。"',
+    ),
+    (
+        NOTIFY,
+        "止める理由を最初の1つで打ち切る（直して再実行を繰り返させる）",
+        "    return Gate(ok=not blocks, blocks=tuple(blocks), notes=tuple(notes))",
+        "    return Gate(ok=not blocks, blocks=tuple(blocks[:1]), notes=tuple(notes))",
+    ),
+    (
+        NOTIFY,
+        "注意を捨てる（無制限・残りわずかが伝わらなくなる）",
+        "    return Gate(ok=not blocks, blocks=tuple(blocks), notes=tuple(notes))",
+        "    return Gate(ok=not blocks, blocks=tuple(blocks), notes=())",
+    ),
+    # ================================================ カレンダー：静かに減る側
+    (
+        NOTIFY,
+        "次のページを追わない（件数が静かに減る）",
+        '        page_token = payload.get("nextPageToken")',
+        "        page_token = None",
+    ),
+    (
+        NOTIFY,
+        "初回から pageToken を載せる（API 側の解釈になる）",
+        "        if page_token:",
+        "        if True:",
+    ),
+    (
+        NOTIFY,
+        "ページ上限を1にする（2ページ目の予定が丸ごと消える）",
+        "MAX_PAGES = 10",
+        "MAX_PAGES = 1",
+    ),
+    (
+        NOTIFY,
+        "応答の形を検査しない",
+        "        if not isinstance(payload, dict):",
+        "        if False:",
+    ),
+    (
+        NOTIFY,
+        "Google のエラーを訳さず素通しする",
+        "            raise translate_http_error(error) from error",
+        "            raise",
+    ),
+    (
+        NOTIFY,
+        "403 の案内を消す（API を有効にしていないことが分からなくなる）",
+        "    if status == 403:",
+        "    if False:",
+    ),
+    # ============================================================== 対象日
+    (
+        NOTIFY,
+        "壊れた日付を今日に倒す（別の日の予定が黙って送られる）",
+        "        return date.fromisoformat(value)",
+        "        return date.today()",
+    ),
+    (
+        NOTIFY,
+        "対象日を無視して常に今日で引く",
+        "    payload = fetch_all_events(service, build_list_params(target_date, DEFAULT_TIMEZONE))",
+        "    payload = fetch_all_events(service, build_list_params(date.today(), DEFAULT_TIMEZONE))",
+    ),
+    # ================================================================ 記録
+    (
+        NOTIFY,
+        "対象日を記録しない（いつの予定を送ったか分からなくなる）",
+        '        "target_date": target_date.isoformat(),',
+        '        "target_date": "",',
+    ),
+    (
+        NOTIFY,
+        "件数を記録しない（カレンダーと突き合わせられなくなる）",
+        '        "event_count": len(events),',
+        '        "event_count": 0,',
+    ),
+    (
+        NOTIFY,
+        "無制限を 0 として記録する（照合側で「使い切った」に化ける）",
+        '        "remaining": remaining,',
+        '        "remaining": remaining or 0,',
+    ),
+    (
+        NOTIFY,
+        "宛先を伏せずに記録する（public リポジトリに素で残る）",
+        '        "to_masked": send_push.mask_destination(to),',
+        '        "to_masked": to,',
+    ),
+    # ======================================================== 実行の順番と停止
+    (
+        NOTIFY,
+        "ガードが中止と言っても送る",
+        "    if not gate.ok:",
+        "    if False:",
+    ),
+    (
+        NOTIFY,
+        "--dry-run でも送る（通数を消費する）",
+        "    if args.dry_run:",
+        "    if False:",
+    ),
+    # ================================================ 照合：確認できないこと
+    (
+        VERIFY,
+        "確認できないことを出さない（合格が「全部確認した」に見える）",
+        '        lines.append(f"  ・{note}")',
+        "        pass",
+    ),
+    (
+        VERIFY,
+        "本文を読み返せないという注記を消す",
+        '        "本文が届いたかどうか。LINE には bot が送ったテキストを読み返す API が無い"',
+        '        ""',
+    ),
+    (
+        VERIFY,
+        "カレンダー照合の時点ズレの注記を消す",
+        '        "カレンダーの照合が見ているのは「いま」の予定であって、送信した瞬間のもの"',
+        '        ""',
+    ),
+    (
+        VERIFY,
+        "送信前ガードが届いた証拠にならない、という注記を消す",
+        '        "送信前ガードが「届く」と答えたことは、届いたことを意味しない。"',
+        '        ""',
+    ),
+    # ================================================ 照合：手元の検査
+    (
+        VERIFY,
+        "記録に欠けた項目があっても照合を始める",
+        "    missing = [key for key in REQUIRED_KEYS if key not in payload]",
+        "    missing = []",
+    ),
+    (
+        VERIFY,
+        "通数を「1 増えた」ではなく「増えた」で見る",
+        '        _compare("通数の増分", 1, delta),',
+        '        Check(label="通数の増分", expected="1 以上", actual=delta, ok=_is_int(delta) and delta >= 1),',
+    ),
+    (
+        VERIFY,
+        "本文の行数と件数を突き合わせない",
+        '        _compare("予定の行数と件数", record.get("event_count"), count_event_lines(text)),',
+        '        _compare("予定の行数と件数", True, True),',
+    ),
+    (
+        VERIFY,
+        "予定の行を数えず、本文の全行を数える",
+        "    return sum(1 for line in text.splitlines() if line.startswith(EVENT_LINE_PREFIX))",
+        "    return len(text.splitlines())",
+    ),
+    (
+        VERIFY,
+        "本文に対象日があるかを見ない",
+        '            "本文に対象日がある", True, bool(target_date) and target_date in text',
+        '            "本文に対象日がある", True, True',
+    ),
+    (
+        VERIFY,
+        "無制限（null）の残数を不合格にする",
+        '            "残数が読める形", True, remaining is None or _is_int(remaining)',
+        '            "残数が読める形", True, _is_int(remaining)',
+    ),
+    # ================================================ 照合：遠隔の検査
+    (
+        VERIFY,
+        "API を叩き直さず記録どうしを比べる（トートロジー）",
+        '        _compare("basicId（API と記録）", bot.get("basic_id"), info.basic_id),',
+        '        _compare("basicId（API と記録）", bot.get("basic_id"), bot.get("basic_id")),',
+    ),
+    (
+        VERIFY,
+        "いまも宛先に届くかを見ない",
+        "            ok=reachability.reachable,",
+        "            ok=True,",
+    ),
+    (
+        VERIFY,
+        "通数が減っていても通す",
+        "        usage_ok = current >= after",
+        "        usage_ok = True",
+    ),
+    (
+        VERIFY,
+        "カレンダーを記録の対象日ではなく今日で引く",
+        "        target_date = date.fromisoformat(raw)",
+        "        target_date = date.today()",
+    ),
+    (
+        VERIFY,
+        "カレンダーの件数を照合しない",
+        '        _compare("カレンダーの件数（いま）", record.get("event_count"), len(events)),',
+        '        _compare("カレンダーの件数（いま）", True, True),',
+    ),
+    (
+        VERIFY,
+        "--local-only でも API を叩く",
+        "    if not args.local_only:",
+        "    if True:",
+    ),
+    (
+        VERIFY,
+        "--no-calendar を無視してカレンダーを読む",
+        "        if not args.no_calendar:",
+        "        if True:",
+    ),
+    (
+        NOTIFY,
+        "予定名の改行を畳まない（本文の 1行=1件 が崩れる）",
+        '        summary = " ".join(str(item.get("summary") or "").split()) or NO_TITLE',
+        '        summary = str(item.get("summary") or "").strip() or NO_TITLE',
+    ),
+    (
+        VERIFY,
+        "記録の宛先といまの宛先を照合しない",
+        '            record.get("to_masked"),',
+        "            record.get(\"to_masked\") if False else send_push.mask_destination(to),",
+    ),
+    (
+        VERIFY,
+        "壊れた対象日で生の ValueError を出す",
+        "    except ValueError as error:",
+        "    except ZeroDivisionError as error:",
+    ),
+    # ============================== 自己検査（課題9から持ち越した宿題）
+    (
+        CHECKDOCS,
+        "照合項目数に自分自身を数えない（README が常に1つ少なくなる）",
+        "    actual = checks_so_far + 1",
+        "    actual = checks_so_far",
+    ),
+    (
+        CHECKDOCS,
+        "自分自身を二重に数える",
+        "    actual = checks_so_far + 1",
+        "    actual = checks_so_far + 2",
+    ),
+    (
+        CHECKDOCS,
+        "README が項目数を名乗っていなくても合格にする",
+        "        return False, (",
+        "        return True, (",
+    ),
+    (
+        CHECKDOCS,
+        "名乗りが無いのを 0 と読む（1件も検査していない、と区別が付かない）",
+        "    return int(match.group(1)) if match else None",
+        "    return int(match.group(1)) if match else 0",
+    ),
+]
+
+
 def run_tests(work: Path) -> bool:
     """写した側でテストを回す。1件でも落ちたら True。"""
     proc = subprocess.run(
