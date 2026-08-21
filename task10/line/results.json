@@ -1,0 +1,19 @@
+{
+  "bot": {
+    "user_id": "U1b305ee6f6bcf47c7fa6ad0277ccb17c",
+    "basic_id": "@687jseqd",
+    "display_name": "開発テスト",
+    "chat_mode": "bot",
+    "mark_as_read_mode": "auto"
+  },
+  "to_masked": "U8…9a",
+  "target_date": "2026-08-21",
+  "event_count": 2,
+  "all_day_count": 1,
+  "text": "2026-08-21 の予定\n\n- 終日 課題10 記事の提出（LINE）\n- 20:00 課題10 実機確認とスクリーンショット",
+  "message_id": "628280397193019597",
+  "request_id": "ceca2881-5734-44c1-9dc6-9bbf0118f09c",
+  "usage_before": 5,
+  "usage_after": 6,
+  "remaining": 195
+}
