@@ -174,7 +174,7 @@ MUTATIONS: list[tuple[str, str, str, str]] = [
     (
         AUTH,
         "届かない理由を丸ごと空にする（止めた理由が利用者に伝わらない）",
-        '            reason=(\n                "この宛先はプロフィールを返しませんでした（404）。"\n                "友だち追加されていないか、ブロックされています。"\n                "push はこの相手にも 200 を返すため、送信前に止めます。"\n            ),',
+        "            reason=UNREACHABLE_REASON,",
         '            reason="",',
     ),
     (
