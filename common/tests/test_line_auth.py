@@ -794,6 +794,43 @@ def test_unreachable_reason_names_the_cause():
     assert "200" in result.reason
 
 
+def test_unreachable_reason_includes_the_measured_block_case():
+    """404 の原因に**ブロック**を入れる（2026-08-24 に実測した）。
+
+    公式リファレンスが並べているのは3つで、ブロックは入っていない。
+    だが ``task10/probe/block_probe.py`` で3点測ったところ
+    （ブロック前 200 → ブロック中 404 → 解除後 200）、
+    **ブロックされた相手にも 404 が返った**。
+
+    ここを書かないと、運用担当者は一覧に無い原因を検討できない。
+    「安全に倒すことと、正しく説明することは別」——この課題の主題そのもの。
+    """
+    session = FakeSession(
+        FakeResponse(status_code=404, payload={"message": "Not found"})
+    )
+
+    result = line_auth.fetch_profile(session, USER_ID)
+
+    assert "ブロック" in result.reason
+
+
+def test_unreachable_reason_does_not_decide_which_cause_it_is():
+    """**原因を1つに決めつけない。**
+
+    ブロックが 404 を返すと分かっても、404 がブロックだとは限らない。
+    「ブロックされています」と書けば、運用担当者は何もしていない相手に
+    確認の連絡をする。原因が4つに増えても、区別が付かないことは変わらない。
+    """
+    session = FakeSession(
+        FakeResponse(status_code=404, payload={"message": "Not found"})
+    )
+
+    result = line_auth.fetch_profile(session, USER_ID)
+
+    assert "区別できません" in result.reason
+    assert "ブロックされています" not in result.reason
+
+
 def test_profile_401_is_rejected_even_when_the_body_looks_normal():
     """本文が**正常な形**でも、401 は例外にする。
 

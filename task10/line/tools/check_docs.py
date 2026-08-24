@@ -67,6 +67,9 @@ TEST_FILES = (
     "task10/line/tests/test_verify_notify.py",
     "task10/line/tests/test_check_docs.py",
     "common/tests/test_line_auth.py",
+    # ブロック実測の判定（2026-08-24 に追加）。**判定がそのまま記事に載る**ので、
+    # 他のテストと同じように件数を README と突き合わせる。
+    "task10/probe/tests/test_block_probe.py",
 )
 
 #: README が名乗る照合項目数。``照合 **42** 項目`` の形で書く。

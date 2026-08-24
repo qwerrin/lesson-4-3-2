@@ -22,7 +22,7 @@ Google の OAuth、毎回取り直す Zoom の Server-to-Server OAuth、公開�
 | 7 | Slack API | [`task7/`](task7/README.md) | 実装・テスト142件・実機で投稿と読み返し照合まで確認済み |
 | 8 | Discord | [`task8/`](task8/README.md) | 実装・テスト163件・実機で Bot と Webhook の2経路を照合まで確認済み |
 | 9 | LINE Messaging API | [`task9/`](task9/README.md) | 実装・テスト118件・実機で送信と**別エンドポイントでの通数照合**まで確認済み（**本文の読み返しは API が無いので目視**） |
-| 10 | 連携した API に機能を追加 | [`task10/line/`](task10/line/README.md) ／ [`task10/discord/`](task10/discord/README.md) | LINE側: 実装・テスト168件・わざと壊す検査73か所すべて kill・**実機で送信と照合14項目まで確認済み**（本文の到達は目視）／ Discord側: 実装・テスト97件・わざと壊す検査75か所すべて kill・**実機はこれから** |
+| 10 | 連携した API に機能を追加 | [`task10/line/`](task10/line/README.md) ／ [`task10/discord/`](task10/discord/README.md) ／ [`task10/probe/`](task10/probe/block_probe.py) | LINE側: 実装・テスト181件・わざと壊す検査73か所すべて kill・**実機で送信と照合14項目まで確認済み**（本文の到達は目視）／ Discord側: 実装・テスト134件・わざと壊す検査95か所すべて kill・**実機で3本を流し読み返しの照合24項目すべて一致**／ 探り道具: **ブロック中の 404 を3点測定で確定**（テスト11件・わざと壊す検査10か所すべて kill） |
 
 ## セットアップ
 
