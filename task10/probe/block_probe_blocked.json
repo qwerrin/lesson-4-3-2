@@ -1,0 +1,17 @@
+{
+  "label": "blocked",
+  "measured_at": "2026-08-24T22:42:24",
+  "endpoint": "GET /v2/bot/profile/{userId}",
+  "bot_user_id": "U1b305ee6f6bcf47c7fa6ad0277ccb17c",
+  "bot_basic_id": "@687jseqd",
+  "user_fingerprint": "sha256:e80a4594bb536b52",
+  "status": 404,
+  "body_keys": [
+    "message"
+  ],
+  "has_user_id": false,
+  "has_display_name": false,
+  "display_name_len": 0,
+  "guard_reachable": false,
+  "guard_reason": "この宛先はプロフィールを返しませんでした（404）。公式リファレンスでは、404 は「ユーザーIDが存在しない」「プロフィール情報の取得に同意していない」「友だち追加していない」のいずれでも返るとされており、どれなのかはこの応答からは区別できません。push はこれらの相手にも 200 を返して届かないため、送信前に止めます。"
+}

@@ -1,0 +1,21 @@
+{
+  "label": "unblocked-after",
+  "measured_at": "2026-08-24T22:47:44",
+  "endpoint": "GET /v2/bot/profile/{userId}",
+  "bot_user_id": "U1b305ee6f6bcf47c7fa6ad0277ccb17c",
+  "bot_basic_id": "@687jseqd",
+  "user_fingerprint": "sha256:e80a4594bb536b52",
+  "status": 200,
+  "body_keys": [
+    "displayName",
+    "language",
+    "pictureUrl",
+    "statusMessage",
+    "userId"
+  ],
+  "has_user_id": true,
+  "has_display_name": true,
+  "display_name_len": 1,
+  "guard_reachable": true,
+  "guard_reason": ""
+}
